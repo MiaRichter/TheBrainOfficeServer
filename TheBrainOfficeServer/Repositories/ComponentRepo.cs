@@ -48,14 +48,14 @@ namespace TheBrainOfficeServer.Repositories
         {
             try
             {
-                string query = @"
+                string query = $@"
                     INSERT INTO components 
-                        (name, description, component_type, location)
+                        (component_Id, name, description, component_type, location)
                     VALUES 
-                        (@Name, @Description, @ComponentType, @Location)
+                        ('{component.ComponentId}', '{component.Name}', '{component.Description}', '{component.ComponentType}', '{component.Location}')
                     RETURNING id";
 
-                return _db.GetScalar<int>(query, component);
+                return _db.GetScalar<int>(query);
             }
             catch (Exception ex)
             {
@@ -68,24 +68,24 @@ namespace TheBrainOfficeServer.Repositories
         {
             try
             {
-                string query = @"
+                string query = $@"
                     UPDATE components
                     SET 
-                        name = @Name,
-                        description = @Description,
-                        component_type = @ComponentType,
-                        location = @Location,
+                        name = '{component.Name}',
+                        description = '{component.Description}',
+                        component_type = '{component.ComponentType}',
+                        location = '{component.Location}',
                         updated_at = NOW()
                     WHERE 
-                        component_id = @ComponentId
+                        component_id = '{component.ComponentId}'
                     AND 
                         is_active = true";
 
-                return _db.Execute(query, component);
+                return _db.Execute(query);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error updating component {component.ComponentId}");
+                _logger.LogError(ex.Message, $"Error updating component {component.ComponentId}");
                 throw;
             }
         }
@@ -94,16 +94,16 @@ namespace TheBrainOfficeServer.Repositories
         {
             try
             {
-                string query = @"
+                string query = $@"
                     DELETE FROM components
                     WHERE 
-                        component_id = @componentId";
+                        component_id = '{componentId}'";
 
-                return _db.Execute(query, new { componentId });
+                return _db.Execute(query);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error hard-deleting component {componentId}");
+                _logger.LogError(ex.Message, $"Error hard-deleting component {componentId}");
                 throw;
             }
         }

@@ -43,7 +43,7 @@ namespace TheBrainOfficeServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating component");
+                _logger.LogError(ex.Message, "Error creating component");
                 return StatusCode(500, "Internal server error");
             }
         }
