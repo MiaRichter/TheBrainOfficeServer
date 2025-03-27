@@ -26,7 +26,7 @@ namespace TheBrainOfficeServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting components");
+                _logger.LogError(ex.Message, "Error getting components");
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -63,7 +63,7 @@ namespace TheBrainOfficeServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error updating component {componentId}");
+                _logger.LogError(ex.Message, $"Error updating component {componentId}");
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -77,7 +77,7 @@ namespace TheBrainOfficeServer.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting component {componentId}");
+                _logger.LogError(ex.Message, $"Error deleting component {componentId}");
                 return StatusCode(500, "Internal server error");
             }
         }
