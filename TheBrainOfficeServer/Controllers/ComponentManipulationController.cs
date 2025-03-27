@@ -89,7 +89,7 @@ namespace TheBrainOfficeServer.Controllers
         }
 
         [HttpDelete("{componentId}")]
-        public IActionResult DeleteComponent(string componentId, [FromQuery] bool permanent = false)
+        public IActionResult DeleteComponent(string componentId, [+] bool permanent = false)
         {
             try
             {
