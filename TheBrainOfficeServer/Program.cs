@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Globalization;
+using System.Text;
 using TheBrainOfficeServer.Services;
 using TheBrainOfficeServer.Repositories;
 
@@ -12,21 +13,24 @@ namespace TheBrainOfficeServer
             var builder = WebApplication.CreateBuilder(args);
 
             // Конфигурация
-            builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
-            {
-                var env = hostingContext.HostingEnvironment;
-                config.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
-            });
+            builder.Configuration
+                .AddJsonFile("appsettings.json")
+                .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true);
+
+            // Логгирование
+            builder.Logging.ClearProviders();
+            builder.Logging.AddConsole();
+            builder.Logging.AddDebug();
 
             // Сервисы
             builder.Services.AddControllers();
 
             // База данных и репозитории
-            builder.Services.AddSingleton(provider =>
-                new AppDBService(builder.Configuration.GetConnectionString("PostgreSQL")));
+            var connectionString = builder.Configuration.GetConnectionString("PostgreSQL");
+            builder.Services.AddSingleton<AppDBService>(new AppDBService(connectionString));
+            builder.Services.AddScoped<ComponentRepo>();
 
-            builder.Services.AddSingleton<InitializeRepo>();
-
+           
             // CORS (разрешаем все для разработки)
             builder.Services.AddCors(options =>
             {
@@ -51,8 +55,8 @@ namespace TheBrainOfficeServer
             }
 
             app.UseStaticFiles();
-            app.UseCors("AllowAll");
             app.UseRouting();
+            app.UseCors("AllowAll");
             app.UseAuthentication();
             app.UseAuthorization();
 
