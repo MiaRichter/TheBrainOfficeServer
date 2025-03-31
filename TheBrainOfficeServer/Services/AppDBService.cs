@@ -72,17 +72,16 @@ namespace TheBrainOfficeServer.Services
             }
         }
 
-        public bool Execute(string sql, object param = null) // Добавил параметр param для безопасности
+        public bool Execute(string sql, object param = null)
         {
             try
             {
                 _dbConn.Open();
-                _dbConn.Execute(sql, param); // Используем параметризованный запрос
-                return true;
+                int rowsAffected = _dbConn.Execute(sql, param); // Получаем количество изменённых строк
+                return rowsAffected > 0; // True только если были изменения
             }
-            catch (Exception ex)
+            catch
             {
-                // Логирование ошибки было бы полезно
                 return false;
             }
             finally

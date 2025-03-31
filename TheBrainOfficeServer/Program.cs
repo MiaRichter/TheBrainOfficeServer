@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using TheBrainOfficeServer.Services;
 using TheBrainOfficeServer.Repositories;
+using TheBrainOfficeServer.Middlewares;
 
 namespace TheBrainOfficeServer
 {
@@ -54,6 +55,7 @@ namespace TheBrainOfficeServer
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseStaticFiles();
             app.UseRouting();
             app.UseCors("AllowAll");
