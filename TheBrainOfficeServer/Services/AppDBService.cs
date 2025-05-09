@@ -1,6 +1,6 @@
 ﻿using System.Data;
-using Npgsql; // Заменяем OracleConnection на NpgsqlConnection
-using Dapper; // Предполагается, что вы используете Dapper для Query и Execute
+using Npgsql;
+using Dapper;
 
 namespace TheBrainOfficeServer.Services
 {
@@ -10,7 +10,7 @@ namespace TheBrainOfficeServer.Services
 
         public AppDBService(string connection)
         {
-            _dbConn = new NpgsqlConnection(connection); // Используем NpgsqlConnection вместо OracleConnection
+            _dbConn = new NpgsqlConnection(connection);
         }
 
         public T GetScalar<T>(string sql, object param = null)
@@ -77,8 +77,8 @@ namespace TheBrainOfficeServer.Services
             try
             {
                 _dbConn.Open();
-                int rowsAffected = _dbConn.Execute(sql, param); // Получаем количество изменённых строк
-                return rowsAffected > 0; // True только если были изменения
+                _dbConn.Execute(sql, param);
+                return true;
             }
             catch
             {

@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.Net;
-using System.Text.Json;
+﻿using System.Text.Json;
 using TheBrainOfficeServer.Exceptions;
 
 namespace TheBrainOfficeServer.Middlewares
@@ -8,14 +6,10 @@ namespace TheBrainOfficeServer.Middlewares
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-        public ExceptionHandlingMiddleware(
-            RequestDelegate next,
-            ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(RequestDelegate next)
         {
             _next = next;
-            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -32,11 +26,8 @@ namespace TheBrainOfficeServer.Middlewares
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            _logger.LogError(exception, "Global exception caught");
-
             context.Response.ContentType = "application/json";
 
-            // Используем разные имена переменных для разных случаев
             var userMessage = exception is AppException appException
                 ? appException.UserMessage
                 : "Произошла непредвиденная ошибка";
@@ -54,14 +45,9 @@ namespace TheBrainOfficeServer.Middlewares
                     : null
             };
 
-            context.Response.StatusCode = exception switch
-            {
-                AppException => (int)HttpStatusCode.BadRequest,
-                _ => (int)HttpStatusCode.InternalServerError
-            };
+            context.Response.StatusCode = 505;
 
-            await context.Response.WriteAsync(
-                JsonSerializer.Serialize(response));
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
     }
 

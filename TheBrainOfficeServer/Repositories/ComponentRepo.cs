@@ -1,4 +1,4 @@
-﻿using TheBrainOfficeServer.Exceptions;
+﻿using System.Device.Gpio;
 using TheBrainOfficeServer.Models;
 using TheBrainOfficeServer.Services;
 
@@ -7,16 +7,16 @@ namespace TheBrainOfficeServer.Repositories
     public class ComponentRepo
     {
         private readonly AppDBService _db;
-        private readonly ILogger<ComponentRepo> _logger;
-
-        public ComponentRepo(AppDBService db, ILogger<ComponentRepo> logger)
+        private readonly GpioController _gpio;
+        public ComponentRepo(AppDBService db)
         {
             _db = db;
-            _logger = logger;
+            _gpio = new GpioController(PinNumberingScheme.Logical);
         }
 
-        public List<ComponentModel> ShowComponents()
+        public List<ComponentModel> ShowComponents() //показать доступные компоненты
         {
+
             string query = @"
                 SELECT 
                     id, 
@@ -32,74 +32,72 @@ namespace TheBrainOfficeServer.Repositories
                 WHERE is_active = true
                 ORDER BY created_at DESC";
 
-            return _db.GetList<ComponentModel>(query)
-                ?? throw new RepositoryException(
-                    "получение списка компонентов",
-                    "Query returned null");
+            return _db.GetList<ComponentModel>(query);
         }
 
         public string CreateComponent(ComponentModel component)
         {
             const string query = @"
-        INSERT INTO components 
-            (component_Id, name, description, component_type, location)
-        VALUES 
-            (@ComponentId, @Name, @Description, @ComponentType, @Location)
-        RETURNING id";
+                INSERT INTO components 
+                    (component_Id, name, description, component_type, location)
+                VALUES 
+                    (@ComponentId, @Name, @Description, @ComponentType, @Location)
+                RETURNING id";
 
-            var parameters = new
+            return _db.GetScalar<int>(query, new
             {
                 component.ComponentId,
                 component.Name,
                 component.Description,
                 component.ComponentType,
                 component.Location
-            };
-
-            return _db.GetScalar<int>(query, parameters).ToString()
-                ?? throw new RepositoryException(
-                    "создание компонента",
-                    $"Failed to create component {component.ComponentId}");
+            }).ToString(); //создать компонент
         }
 
-        public bool UpdateComponent(ComponentModel component)
+        public bool UpdateComponent(ComponentModel component)  //обновить компонент
         {
-            string query = $@"
+            const string query = $@"
                 UPDATE components
                 SET 
-                    name = '{component.Name}',
-                    description = '{component.Description}',
-                    component_type = '{component.ComponentType}',
-                    location = '{component.Location}',
+                    name = @Name,
+                    description = @Description,
+                    component_type = @ComponentType,
+                    location = @Location,
                     updated_at = NOW()
-                WHERE 
-                    component_id = '{component.ComponentId}'
-                AND 
-                    is_active = true";
-
-            if (!_db.Execute(query))
+                WHERE component_id = @ComponentId";
+            var parameters = new
             {
-                throw new RepositoryException(
-                    "обновление компонента",
-                    $"Failed to update component {component.ComponentId}");
-            }
-            return true;
+                component.Name,
+                component.Description,
+                component.ComponentType,
+                component.Location,
+                component.ComponentId
+            };
+
+            return _db.Execute(query, parameters);
         }
 
-        public bool DeleteComponent(string componentId)
+        public bool DeleteComponent(string componentId) //удалить компонент
         {
             string query = $@"
                 DELETE FROM components
-                WHERE 
-                    component_id = '{componentId}'";
+                WHERE component_id = '{componentId}'";
 
-            if (!_db.Execute(query))
-            {
-                throw new RepositoryException(
-                    "удаление компонента",
-                    $"Failed to delete component {componentId}");
-            }
-            return true;
+            return _db.Execute(query);
+        }
+
+        public void TurnOnLight() // метод для управления освещением в доме а точнее включением света
+        {
+            const int pin = 17; // GPIO17 (BCM)
+            _gpio.OpenPin(pin, PinMode.Output);
+            _gpio.Write(pin, PinValue.High);
+        }
+
+        public void TurnOffLight() // выключение света
+        {
+            const int pin = 17;
+            _gpio.Write(pin, PinValue.Low);
+            _gpio.ClosePin(pin);
         }
     }
 }

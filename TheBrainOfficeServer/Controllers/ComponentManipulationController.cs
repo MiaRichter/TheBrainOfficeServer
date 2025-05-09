@@ -20,8 +20,8 @@ namespace TheBrainOfficeServer.Controllers
         [HttpPost("Create")]
         public ActionResult CreateComponent([FromBody] ComponentModel component) => Ok(_componentRepo.CreateComponent(component));
 
-        [HttpPut("Update/{componentId}")]
-        public IActionResult UpdateComponent(string componentId, [FromBody] ComponentModel component) => Ok(_componentRepo.UpdateComponent(component));
+        [HttpPut("Update")]
+        public IActionResult UpdateComponent([FromBody] ComponentModel component) => Ok(_componentRepo.UpdateComponent(component));
 
         [HttpDelete("Delete/{componentId}")]
         public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(_componentRepo.DeleteComponent(componentId));
