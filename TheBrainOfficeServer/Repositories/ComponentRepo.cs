@@ -11,7 +11,7 @@ namespace TheBrainOfficeServer.Repositories
         public ComponentRepo(AppDBService db)
         {
             _db = db;
-            _gpio = new GpioController(PinNumberingScheme.Logical);
+            //_gpio = new GpioController(PinNumberingScheme.Logical);
         }
 
         public List<ComponentModel> ShowComponents() //показать доступные компоненты
