@@ -41,8 +41,7 @@ namespace TheBrainOfficeServer
                 {
                     policy.AllowAnyOrigin()
                           .AllowAnyMethod()
-                          .AllowAnyHeader()
-                          .AllowCredentials(); // Важно для WebSockets
+                          .AllowAnyHeader();
                 });
             });
 
