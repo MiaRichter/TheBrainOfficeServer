@@ -1,20 +1,19 @@
 ﻿using System.Device.Gpio;
 using TheBrainOfficeServer.Models;
 using TheBrainOfficeServer.Services;
+using Iot.Device.DHTxx;
 
 namespace TheBrainOfficeServer.Repositories
 {
     public class ComponentRepo
     {
         private readonly AppDBService _db;
-        private readonly GpioController _gpio;
         public ComponentRepo(AppDBService db)
         {
             _db = db;
-            //_gpio = new GpioController(PinNumberingScheme.Logical);
         }
 
-        public List<ComponentModel> ShowComponents() //показать доступные компоненты
+        public List<ComponentModel> ShowComponents()
         {
 
             string query = @"
@@ -51,10 +50,10 @@ namespace TheBrainOfficeServer.Repositories
                 component.Description,
                 component.ComponentType,
                 component.Location
-            }).ToString(); //создать компонент
+            }).ToString();
         }
 
-        public bool UpdateComponent(ComponentModel component)  //обновить компонент
+        public bool UpdateComponent(ComponentModel component)
         {
             const string query = $@"
                 UPDATE components
@@ -77,7 +76,7 @@ namespace TheBrainOfficeServer.Repositories
             return _db.Execute(query, parameters);
         }
 
-        public bool DeleteComponent(string componentId) //удалить компонент
+        public bool DeleteComponent(string componentId)
         {
             string query = $@"
                 DELETE FROM components
@@ -86,18 +85,6 @@ namespace TheBrainOfficeServer.Repositories
             return _db.Execute(query);
         }
 
-        public void TurnOnLight() // метод для управления освещением в доме а точнее включением света
-        {
-            const int pin = 17; // GPIO17 (BCM)
-            _gpio.OpenPin(pin, PinMode.Output);
-            _gpio.Write(pin, PinValue.High);
-        }
-
-        public void TurnOffLight() // выключение света
-        {
-            const int pin = 17;
-            _gpio.Write(pin, PinValue.Low);
-            _gpio.ClosePin(pin);
-        }
+        
     }
 }

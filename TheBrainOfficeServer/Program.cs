@@ -2,10 +2,11 @@ using System.Globalization;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using Iot.Device.Common;
+using Iot.Device.DHTxx;
 using Microsoft.AspNetCore.WebSockets;
 using TheBrainOfficeServer.Middlewares;
-using TheBrainOfficeServer.Repositories;
-using TheBrainOfficeServer.Services;
+using UnitsNet;
 
 namespace TheBrainOfficeServer
 {
@@ -19,7 +20,7 @@ namespace TheBrainOfficeServer
             builder.Configuration
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                 .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
-                .AddEnvironmentVariables(); // Важно для Linux!
+                .AddEnvironmentVariables();
 
             // Сервисы
             builder.Services.AddControllers();
@@ -30,24 +31,15 @@ namespace TheBrainOfficeServer
                 options.KeepAliveInterval = TimeSpan.FromMinutes(2);
             });
 
-            // База данных (проверьте строку подключения для Linux)
-            var connectionString = builder.Configuration.GetConnectionString("PostgreSQL")
-                ?? "Host=localhost;Database=your_db;Username=your_user;Password=your_pwd";
-
-            builder.Services.AddSingleton<AppDBService>(new AppDBService(connectionString));
-            builder.Services.AddScoped<ComponentRepo>();
-
-            // CORS для Linux (более строгий вариант)
+            // CORS для Linux
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("MobileCors", policy =>
                 {
                     policy.SetIsOriginAllowed(origin =>
                     {
-                        // Разрешаем все локальные адреса и стандартные для MAUI
                         if (string.IsNullOrEmpty(origin)) return true;
 
-                        // Для Android эмулятора и устройств
                         if (origin.StartsWith("http://10.0.2.2") ||
                             origin.StartsWith("http://192.168.") ||
                             origin.StartsWith("http://172.") ||
@@ -56,7 +48,6 @@ namespace TheBrainOfficeServer
                             return true;
                         }
 
-                        // Добавьте здесь любые другие нужные домены
                         return false;
                     })
                     .AllowAnyMethod()
@@ -83,22 +74,20 @@ namespace TheBrainOfficeServer
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseStaticFiles();
             app.UseRouting();
-            app.UseCors("LinuxCors"); // Используем специальную политику для Linux
+            app.UseCors("LinuxCors");
             app.UseAuthorization();
 
             // WebSockets
             app.UseWebSockets(new WebSocketOptions
             {
                 KeepAliveInterval = TimeSpan.FromMinutes(2),
-                AllowedOrigins = { } // Пустой список = принимаем все
+                AllowedOrigins = { }
             });
 
             app.Use(async (context, next) =>
             {
-
                 if (context.Request.Path == "/ws")
                 {
-                    // Дополнительная проверка для мобильных устройств
                     var origin = context.Request.Headers["Origin"].ToString();
                     if (!string.IsNullOrEmpty(origin) &&
                         (origin.Contains("android") ||
