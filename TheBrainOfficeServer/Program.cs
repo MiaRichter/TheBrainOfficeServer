@@ -2,11 +2,8 @@ using System.Globalization;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using Iot.Device.Common;
-using Iot.Device.DHTxx;
 using Microsoft.AspNetCore.WebSockets;
 using TheBrainOfficeServer.Middlewares;
-using UnitsNet;
 
 namespace TheBrainOfficeServer
 {

@@ -1,7 +1,5 @@
-﻿using System.Device.Gpio;
-using TheBrainOfficeServer.Models;
+﻿using TheBrainOfficeServer.Models;
 using TheBrainOfficeServer.Services;
-using Iot.Device.DHTxx;
 
 namespace TheBrainOfficeServer.Repositories
 {
@@ -84,7 +82,5 @@ namespace TheBrainOfficeServer.Repositories
 
             return _db.Execute(query);
         }
-
-        
     }
 }
