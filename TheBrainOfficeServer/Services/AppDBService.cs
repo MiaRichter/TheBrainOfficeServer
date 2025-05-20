@@ -4,16 +4,16 @@ using Dapper;
 
 namespace TheBrainOfficeServer.Services
 {
-    public class AppDBService
+    public abstract class AppDbService
     {
         private readonly IDbConnection _dbConn;
 
-        public AppDBService(string connection)
+        protected AppDbService(string connection)
         {
             _dbConn = new NpgsqlConnection(connection);
         }
 
-        public T GetScalar<T>(string sql, object param = null)
+        public T? GetScalar<T>(string sql, object? param = null)
         {
             try
             {
@@ -27,7 +27,7 @@ namespace TheBrainOfficeServer.Services
             }
         }
 
-        public List<T> GetList<T>(string sql, object param = null)
+        public List<T> GetList<T>(string sql, object? param = null)
         {
             try
             {
@@ -48,21 +48,20 @@ namespace TheBrainOfficeServer.Services
             try
             {
                 _dbConn.Open();
-                using (var reader = _dbConn.ExecuteReader(sql))
+                using var reader = _dbConn.ExecuteReader(sql);
+                while (reader.Read())
                 {
-                    while (reader.Read())
+                    var row = new Dictionary<string, string>();
+                    for (var i = 0; i < reader.FieldCount; i++)
                     {
-                        var row = new Dictionary<string, string>();
-                        for (int i = 0; i < reader.FieldCount; i++)
-                        {
-                            row.Add(
-                                reader.GetName(i).ToLower(),
-                                reader.GetValue(i)?.ToString() ?? string.Empty
-                            );
-                        }
-                        res.Add(row);
+                        row.Add(
+                            reader.GetName(i).ToLower(),
+                            reader.GetValue(i)?.ToString() ?? string.Empty
+                        );
                     }
+                    res.Add(row);
                 }
+
                 return res;
             }
             finally
@@ -72,7 +71,7 @@ namespace TheBrainOfficeServer.Services
             }
         }
 
-        public bool Execute(string sql, object param = null)
+        public bool Execute(string sql, object? param = null)
         {
             try
             {

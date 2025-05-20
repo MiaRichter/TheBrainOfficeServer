@@ -3,18 +3,18 @@ using TheBrainOfficeServer.Services;
 
 namespace TheBrainOfficeServer.Repositories
 {
-    public class ComponentRepo
+    public abstract class ComponentRepo
     {
-        private readonly AppDBService _db;
-        public ComponentRepo(AppDBService db)
+        private readonly AppDbService _db;
+
+        protected ComponentRepo(AppDbService db)
         {
             _db = db;
         }
 
         public List<ComponentModel> ShowComponents()
         {
-
-            string query = @"
+            const string query = @"
                 SELECT 
                     id, 
                     component_id AS ComponentId,
@@ -76,7 +76,7 @@ namespace TheBrainOfficeServer.Repositories
 
         public bool DeleteComponent(string componentId)
         {
-            string query = $@"
+            var query = $@"
                 DELETE FROM components
                 WHERE component_id = '{componentId}'";
 
