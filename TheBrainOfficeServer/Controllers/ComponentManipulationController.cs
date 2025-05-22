@@ -5,25 +5,18 @@ using TheBrainOfficeServer.Repositories;
 namespace TheBrainOfficeServer.Controllers
 {
     [Route("api/[controller]")]
-    public class ComponentManipulationController : ControllerBase
+    public class ComponentManipulationController(ComponentRepo componentRepo) : ControllerBase
     {
-        private readonly ComponentRepo _componentRepo;
-
-        public ComponentManipulationController(ComponentRepo componentRepo)
-        {
-            _componentRepo = componentRepo;
-        }
-
         [HttpGet("ShowComponents")]
-        public ActionResult<IEnumerable<ComponentModel>> GetAllComponents() => Ok(_componentRepo.ShowComponents());
+        public ActionResult<IEnumerable<ComponentModel>> GetAllComponents() => Ok(componentRepo.ShowComponents());
 
         [HttpPost("Create")]
-        public ActionResult CreateComponent([FromBody] ComponentModel component) => Ok(_componentRepo.CreateComponent(component));
+        public ActionResult CreateComponent([FromBody] ComponentModel component) => Ok(componentRepo.CreateComponent(component));
 
         [HttpPut("Update")]
-        public IActionResult UpdateComponent([FromBody] ComponentModel component) => Ok(_componentRepo.UpdateComponent(component));
+        public IActionResult UpdateComponent([FromBody] ComponentModel component) => Ok(componentRepo.UpdateComponent(component));
 
         [HttpDelete("Delete/{componentId}")]
-        public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(_componentRepo.DeleteComponent(componentId));
+        public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(componentRepo.DeleteComponent(componentId));
     }
 }

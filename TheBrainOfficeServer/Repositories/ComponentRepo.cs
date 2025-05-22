@@ -1,20 +1,13 @@
 ﻿using TheBrainOfficeServer.Models;
 using TheBrainOfficeServer.Services;
 
-namespace TheBrainOfficeServer.Repositories
+namespace TheBrainOfficeServer.Repositories;
+
+public abstract class ComponentRepo(AppDbService db)
 {
-    public abstract class ComponentRepo
+    public List<ComponentModel> ShowComponents()
     {
-        private readonly AppDbService _db;
-
-        protected ComponentRepo(AppDbService db)
-        {
-            _db = db;
-        }
-
-        public List<ComponentModel> ShowComponents()
-        {
-            const string query = @"
+        const string query = $@"
                 SELECT 
                     id, 
                     component_id AS ComponentId,
@@ -29,31 +22,31 @@ namespace TheBrainOfficeServer.Repositories
                 WHERE is_active = true
                 ORDER BY created_at DESC";
 
-            return _db.GetList<ComponentModel>(query);
-        }
+        return db.GetList<ComponentModel>(query);
+    }
 
-        public string CreateComponent(ComponentModel component)
-        {
-            const string query = @"
+    public string CreateComponent(ComponentModel component)
+    {
+        const string query = @"
                 INSERT INTO components 
                     (component_Id, name, description, component_type, location)
                 VALUES 
                     (@ComponentId, @Name, @Description, @ComponentType, @Location)
                 RETURNING id";
 
-            return _db.GetScalar<int>(query, new
-            {
-                component.ComponentId,
-                component.Name,
-                component.Description,
-                component.ComponentType,
-                component.Location
-            }).ToString();
-        }
-
-        public bool UpdateComponent(ComponentModel component)
+        return db.GetScalar<int>(query, new
         {
-            const string query = $@"
+            component.ComponentId,
+            component.Name,
+            component.Description,
+            component.ComponentType,
+            component.Location
+        }).ToString();
+    }
+
+    public bool UpdateComponent(ComponentModel component)
+    {
+        const string query = $@"
                 UPDATE components
                 SET 
                     name = @Name,
@@ -62,25 +55,24 @@ namespace TheBrainOfficeServer.Repositories
                     location = @Location,
                     updated_at = NOW()
                 WHERE component_id = @ComponentId";
-            var parameters = new
-            {
-                component.Name,
-                component.Description,
-                component.ComponentType,
-                component.Location,
-                component.ComponentId
-            };
-
-            return _db.Execute(query, parameters);
-        }
-
-        public bool DeleteComponent(string componentId)
+        var parameters = new
         {
-            var query = $@"
+            component.Name,
+            component.Description,
+            component.ComponentType,
+            component.Location,
+            component.ComponentId
+        };
+
+        return db.Execute(query, parameters);
+    }
+
+    public bool DeleteComponent(string componentId)
+    {
+        var query = $@"
                 DELETE FROM components
                 WHERE component_id = '{componentId}'";
 
-            return _db.Execute(query);
-        }
+        return db.Execute(query);
     }
 }
