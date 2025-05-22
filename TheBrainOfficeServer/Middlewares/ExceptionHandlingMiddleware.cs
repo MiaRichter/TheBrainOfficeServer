@@ -1,55 +1,54 @@
 ﻿using System.Text.Json;
 using TheBrainOfficeServer.Exceptions;
 
-namespace TheBrainOfficeServer.Middlewares
+namespace TheBrainOfficeServer.Middlewares;
+
+public class ExceptionHandlingMiddleware(RequestDelegate next)
 {
-    public class ExceptionHandlingMiddleware(RequestDelegate next)
+    public async Task InvokeAsync(HttpContext context)
     {
-        public async Task InvokeAsync(HttpContext context)
+        try
         {
-            try
-            {
-                await next(context);
-            }
-            catch (Exception ex)
-            {
-                await HandleExceptionAsync(context, ex);
-            }
+            await next(context);
         }
-
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        catch (Exception ex)
         {
-            context.Response.ContentType = "application/json";
-
-            var userMessage = exception is AppException appException
-                ? appException.UserMessage
-                : "Произошла непредвиденная ошибка";
-
-            var debugInfo = exception is AppException appEx
-                ? appEx.DebugContext
-                : exception.Message;
-
-            var response = new
-            {
-                UserMessage = userMessage,
-                DebugInfo = debugInfo,
-                StackTrace = context.Request.IsLocal()
-                    ? exception.StackTrace
-                    : null
-            };
-
-            context.Response.StatusCode = 505;
-
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await HandleExceptionAsync(context, ex);
         }
     }
 
-    public static class RequestExtensions
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        public static bool IsLocal(this HttpRequest request)
+        context.Response.ContentType = "application/json";
+
+        var userMessage = exception is AppException appException
+            ? appException.UserMessage
+            : "Произошла непредвиденная ошибка";
+
+        var debugInfo = exception is AppException appEx
+            ? appEx.DebugContext
+            : exception.Message;
+
+        var response = new
         {
-            return request.Host.Host.Contains("localhost") ||
-                   request.Host.Host.Contains("127.0.0.1");
-        }
+            UserMessage = userMessage,
+            DebugInfo = debugInfo,
+            StackTrace = context.Request.IsLocal()
+                ? exception.StackTrace
+                : null
+        };
+
+        context.Response.StatusCode = 505;
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+    }
+}
+
+public static class RequestExtensions
+{
+    public static bool IsLocal(this HttpRequest request)
+    {
+        return request.Host.Host.Contains("localhost") ||
+               request.Host.Host.Contains("127.0.0.1");
     }
 }

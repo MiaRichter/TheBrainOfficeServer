@@ -2,94 +2,94 @@
 using Npgsql;
 using Dapper;
 
-namespace TheBrainOfficeServer.Services
+namespace TheBrainOfficeServer.Services;
+
+public abstract class AppDbService
 {
-    public abstract class AppDbService
+    private readonly IDbConnection _dbConn;
+
+    protected AppDbService(string connection)
     {
-        private readonly IDbConnection _dbConn;
+        _dbConn = new NpgsqlConnection(connection);
+    }
 
-        protected AppDbService(string connection)
+    public T? GetScalar<T>(string sql, object? param = null)
+    {
+        try
         {
-            _dbConn = new NpgsqlConnection(connection);
+            _dbConn.Open();
+            return _dbConn.Query<T>(sql, param).FirstOrDefault();
         }
-
-        public T? GetScalar<T>(string sql, object? param = null)
+        finally
         {
-            try
-            {
-                _dbConn.Open();
-                return _dbConn.Query<T>(sql, param).FirstOrDefault();
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            if (_dbConn.State == ConnectionState.Open)
+                _dbConn.Close();
         }
+    }
 
-        public List<T> GetList<T>(string sql, object? param = null)
+    public List<T> GetList<T>(string sql, object? param = null)
+    {
+        try
         {
-            try
-            {
-                _dbConn.Open();
-                return _dbConn.Query<T>(sql, param).ToList();
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            _dbConn.Open();
+            return _dbConn.Query<T>(sql, param).ToList();
         }
-
-        public List<Dictionary<string, string>> GetList(string sql)
+        finally
         {
-            var res = new List<Dictionary<string, string>>();
-
-            try
-            {
-                _dbConn.Open();
-                using var reader = _dbConn.ExecuteReader(sql);
-                while (reader.Read())
-                {
-                    var row = new Dictionary<string, string>();
-                    for (var i = 0; i < reader.FieldCount; i++)
-                    {
-                        row.Add(
-                            reader.GetName(i).ToLower(),
-                            reader.GetValue(i)?.ToString() ?? string.Empty
-                        );
-                    }
-                    res.Add(row);
-                }
-
-                return res;
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            if (_dbConn.State == ConnectionState.Open)
+                _dbConn.Close();
         }
+    }
 
-        public bool Execute(string sql, object? param = null)
+    public List<Dictionary<string, string>> GetList(string sql)
+    {
+        var res = new List<Dictionary<string, string>>();
+
+        try
         {
-            try
+            _dbConn.Open();
+            using var reader = _dbConn.ExecuteReader(sql);
+            while (reader.Read())
             {
-                _dbConn.Open();
-                _dbConn.Execute(sql, param);
-                return true;
+                var row = new Dictionary<string, string>();
+                for (var i = 0; i < reader.FieldCount; i++)
+                    row.Add(
+                        reader.GetName(i).ToLower(),
+                        reader.GetValue(i)?.ToString() ?? string.Empty
+                    );
+                res.Add(row);
             }
-            catch
-            {
-                return false;
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
-        }
 
-        public IDbConnection GetConnection() => _dbConn;
+            return res;
+        }
+        finally
+        {
+            if (_dbConn.State == ConnectionState.Open)
+                _dbConn.Close();
+        }
+    }
+
+    public bool Execute(string sql, object? param = null)
+    {
+        try
+        {
+            _dbConn.Open();
+            _dbConn.Execute(sql, param);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (_dbConn.State == ConnectionState.Open)
+                _dbConn.Close();
+        }
+    }
+
+    public IDbConnection GetConnection()
+    {
+        return _dbConn;
     }
 }
