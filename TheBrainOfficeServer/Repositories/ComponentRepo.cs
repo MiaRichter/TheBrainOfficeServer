@@ -25,7 +25,7 @@ public abstract class ComponentRepo(AppDbService db)
         return db.GetList<ComponentModel>(query);
     }
 
-    public string CreateComponent(ComponentModel component)
+    public string CreateComponent(ComponentModel component) //проверка
     {
         const string query = @"
                 INSERT INTO components 
