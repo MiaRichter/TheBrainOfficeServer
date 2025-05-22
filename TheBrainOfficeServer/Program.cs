@@ -11,23 +11,23 @@ namespace TheBrainOfficeServer
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Конфигурация
+            // РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ
             builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
             {
                 var env = hostingContext.HostingEnvironment;
                 config.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
             });
 
-            // Сервисы
+            // РЎРµСЂРІРёСЃС‹
             builder.Services.AddControllers();
 
-            // База данных и репозитории
+            // Р‘Р°Р·Р° РґР°РЅРЅС‹С… Рё СЂРµРїРѕР·РёС‚РѕСЂРёРё
             builder.Services.AddSingleton(provider =>
                 new AppDBService(builder.Configuration.GetConnectionString("PostgreSQL")));
 
             builder.Services.AddSingleton<InitializeRepo>();
 
-            // CORS (разрешаем все для разработки)
+            // CORS (СЂР°Р·СЂРµС€Р°РµРј РІСЃРµ РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚РєРё)
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -40,7 +40,7 @@ namespace TheBrainOfficeServer
 
             var app = builder.Build();
 
-            // Конфигурация middleware
+            // РљРѕРЅС„РёРіСѓСЂР°С†РёСЏ middleware
             var cultureInfo = new CultureInfo("ru-RU");
             CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
             CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
