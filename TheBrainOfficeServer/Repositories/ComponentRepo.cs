@@ -1,4 +1,5 @@
-﻿using TheBrainOfficeServer.Models;
+﻿using System.Device.Gpio;
+using TheBrainOfficeServer.Models;
 using TheBrainOfficeServer.Services;
 
 namespace TheBrainOfficeServer.Repositories;
@@ -74,5 +75,34 @@ public abstract class ComponentRepo(AppDbService db)
                 WHERE component_id = '{componentId}'";
 
         return db.Execute(query);
+    }
+
+    public bool SwitchState(bool isActive)
+    {
+        try
+        {
+            int ledPin = 24; //GPIO24 is pin 18 on RPi
+            int ledOnTime = 1000; //led on time in ms
+            int ledOffTime = 500; //led off time in ms
+ 
+            using GpioController controller = new();
+            controller.OpenPin(ledPin, PinMode.Output);
+ 
+            Console.CancelKeyPress += (s, e) =>
+            {
+                controller.Dispose();
+            };
+            if (isActive == true)
+                controller.Write(ledPin, PinValue.High);
+            else 
+                controller.Write(ledPin, PinValue.Low);
+        
+            return isActive;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            throw;
+        }
     }
 }
