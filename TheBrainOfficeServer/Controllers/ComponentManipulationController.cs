@@ -34,5 +34,32 @@ namespace TheBrainOfficeServer.Controllers
 
             return Ok(componentRepo.SwitchState(state));
         }
+        
+        [HttpGet("DhtState")]
+        public IActionResult DhtState() 
+        {
+            var reading = componentRepo.DHTState();
+    
+            if (reading.IsSuccessful)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    temperatureC = reading.TemperatureC,
+                    temperatureF = reading.TemperatureF,
+                    humidity = reading.Humidity,
+                    heatIndexC = reading.HeatIndexC,
+                    dewPointC = reading.DewPointC,
+                    timestamp = DateTime.UtcNow
+                });
+            }
+    
+            return BadRequest(new
+            {
+                success = false,
+                error = reading.ErrorMessage
+            });
+        }
+        
     }
 }

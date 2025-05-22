@@ -1,8 +1,11 @@
 ﻿﻿using System.Collections.Generic;
  using System.Device.Gpio;
+ using Iot.Device.Common;
+ using Iot.Device.DHTxx;
  using TheBrainOfficeServer.Models;
 using Microsoft.Extensions.Logging;
 using TheBrainOfficeServer.Services;
+using UnitsNet;
 
 namespace TheBrainOfficeServer.Repositories
 {
@@ -111,30 +114,66 @@ namespace TheBrainOfficeServer.Repositories
         
         public bool SwitchState(bool isActive)
         {
+            int ledPin = 24; //GPIO24 is pin 18 on RPi
+            int ledOnTime = 1000; //led on time in ms
+            int ledOffTime = 500; //led off time in ms
+ 
+            using GpioController controller = new();
+            controller.OpenPin(ledPin, PinMode.Output);
+ 
+            Console.CancelKeyPress += (s, e) =>
+            {
+                controller.Dispose();
+            };
+ 
+            while (true)
+            {
+                controller.Write(ledPin, PinValue.High);
+                Thread.Sleep(ledOnTime);
+ 
+                controller.Write(ledPin, PinValue.Low);
+                Thread.Sleep(ledOffTime);
+            }
+        }
+        
+        public DhtReading DHTState()
+        {
             try
             {
-                int ledPin = 24; //GPIO24 is pin 18 on RPi
-                int ledOnTime = 1000; //led on time in ms
-                int ledOffTime = 500; //led off time in ms
- 
-                using GpioController controller = new();
-                controller.OpenPin(ledPin, PinMode.Output);
- 
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    controller.Dispose();
-                };
-                if (isActive == true)
-                    controller.Write(ledPin, PinValue.High);
-                else 
-                    controller.Write(ledPin, PinValue.Low);
+                Temperature temperature = default;
+                RelativeHumidity humidity = default;
         
-                return isActive;
+                using (var dht = new Dht11(26))
+                {
+                    var success = dht.TryReadHumidity(out humidity) && 
+                                  dht.TryReadTemperature(out temperature);
+
+                    if (success)
+                    {
+                        return new DhtReading
+                        {
+                            TemperatureC = temperature.DegreesCelsius,
+                            Humidity = humidity.Percent,
+                            HeatIndexC = WeatherHelper.CalculateHeatIndex(temperature, humidity).DegreesCelsius,
+                            DewPointC = WeatherHelper.CalculateDewPoint(temperature, humidity).DegreesCelsius,
+                            IsSuccessful = true
+                        };
+                    }
+            
+                    return new DhtReading
+                    {
+                        IsSuccessful = false,
+                        ErrorMessage = "Не удалось получить данные с датчика DHT11"
+                    };
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
-                throw;
+                return new DhtReading
+                {
+                    IsSuccessful = false,
+                    ErrorMessage = $"Ошибка: {ex.Message}"
+                };
             }
         }
     }
