@@ -19,47 +19,10 @@ namespace TheBrainOfficeServer.Controllers
         [HttpDelete("Delete/{componentId}")]
         public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(componentRepo.DeleteComponent(componentId));[HttpDelete("Delete/{componentId}")]
         
-        [HttpGet("StateLed")]
-        public IActionResult StateLed()
+        [HttpGet("BrainHome/{PortId}")]
+        public IActionResult StateLed([FromRoute] string PortId)
         {
-            bool state = false;
-            if (state == false)
-            {
-                state = true;
-            }
-            else
-            {
-                state = false;
-            }
-
-            return Ok(componentRepo.SwitchState(state));
+            return Ok(componentRepo.DhtState(PortId));
         }
-        
-        [HttpGet("DhtState")]
-        public IActionResult DhtState() 
-        {
-            var reading = componentRepo.DHTState();
-    
-            if (reading.IsSuccessful)
-            {
-                return Ok(new
-                {
-                    success = true,
-                    temperatureC = reading.TemperatureC,
-                    temperatureF = reading.TemperatureF,
-                    humidity = reading.Humidity,
-                    heatIndexC = reading.HeatIndexC,
-                    dewPointC = reading.DewPointC,
-                    timestamp = DateTime.UtcNow
-                });
-            }
-    
-            return BadRequest(new
-            {
-                success = false,
-                error = reading.ErrorMessage
-            });
-        }
-        
     }
 }

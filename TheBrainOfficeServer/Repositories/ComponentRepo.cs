@@ -1,5 +1,8 @@
 ﻿﻿using System.Collections.Generic;
  using System.Device.Gpio;
+ using System.Device.I2c;
+ using System.IO.Ports;
+ using System.Text.Json;
  using Iot.Device.Common;
  using Iot.Device.DHTxx;
  using TheBrainOfficeServer.Models;
@@ -112,70 +115,74 @@ namespace TheBrainOfficeServer.Repositories
             }
         }
         
-        public bool SwitchState(bool isActive)
+        public SensorData DhtState(string portNumber)
         {
-            int ledPin = 24; //GPIO24 is pin 18 on RPi
-            int ledOnTime = 1000; //led on time in ms
-            int ledOffTime = 500; //led off time in ms
- 
-            using GpioController controller = new();
-            controller.OpenPin(ledPin, PinMode.Output);
- 
-            Console.CancelKeyPress += (s, e) =>
-            {
-                controller.Dispose();
-            };
- 
-            while (true)
-            {
-                controller.Write(ledPin, PinValue.High);
-                Thread.Sleep(ledOnTime);
- 
-                controller.Write(ledPin, PinValue.Low);
-                Thread.Sleep(ledOffTime);
-            }
-        }
-        
-        public DhtReading DHTState()
-        {
+            Console.WriteLine("Сервер запущен. Ожидание данных...");
+            SensorData data;
             try
             {
-                Temperature temperature = default;
-                RelativeHumidity humidity = default;
-        
-                using (var dht = new Dht11(26))
+                
+                using var serialPort = new SerialPort($"/dev/ttyUSB{portNumber}", 115200)
                 {
-                    var success = dht.TryReadHumidity(out humidity) && 
-                                  dht.TryReadTemperature(out temperature);
+                    ReadTimeout = 1500,
+                    WriteTimeout = 1500,
+                    Encoding = System.Text.Encoding.UTF8
+                };
 
-                    if (success)
+                serialPort.Open();
+                serialPort.DiscardInBuffer(); // Очистка буфера
+
+                while (DateTime.Now.Day <= 30)
+                {
+                    try
                     {
-                        return new DhtReading
+                        string jsonData = serialPort.ReadLine().Trim();
+
+                        // Пропускаем пустые или некорректные данные
+                        if (string.IsNullOrEmpty(jsonData) || !jsonData.StartsWith("{"))
+                            continue;
+
+                        var options = new JsonSerializerOptions
                         {
-                            TemperatureC = temperature.DegreesCelsius,
-                            Humidity = humidity.Percent,
-                            HeatIndexC = WeatherHelper.CalculateHeatIndex(temperature, humidity).DegreesCelsius,
-                            DewPointC = WeatherHelper.CalculateDewPoint(temperature, humidity).DegreesCelsius,
-                            IsSuccessful = true
+                            PropertyNameCaseInsensitive = true
                         };
+
+                        data = JsonSerializer.Deserialize<SensorData>(jsonData, options);
+
+                        Console.WriteLine($"Влажность: {data?.Humidity ?? 0:F1}%");
+                        Console.WriteLine($"Температура: {data?.Temperature ?? 0:F1}°C");
+                        Console.WriteLine($"RFID: {data?.Rfid ?? "none"}");
+                        Console.WriteLine($"Сервопривод: {(data?.Servo > 0 ? "ВКЛ" : "ВЫКЛ")}");
+                        Console.WriteLine("---------------------");
+                        return data;
                     }
-            
-                    return new DhtReading
+                    catch (TimeoutException)
                     {
-                        IsSuccessful = false,
-                        ErrorMessage = "Не удалось получить данные с датчика DHT11"
-                    };
+                        Console.WriteLine("Таймаут чтения. Проверьте подключение.");
+                    }
+                    catch (JsonException)
+                    {
+                        Console.WriteLine("Ошибка формата данных. Получена некорректная строка JSON.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ошибка: {ex.Message}");
+                    }
                 }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Ошибка доступа к порту. Попробуйте:");
+                Console.WriteLine("1. sudo usermod -a -G dialout $USER");
+                Console.WriteLine("2. sudo chmod 666 /dev/ttyUSB*");
+                Console.WriteLine("3. Перезагрузите Raspberry Pi");
             }
             catch (Exception ex)
             {
-                return new DhtReading
-                {
-                    IsSuccessful = false,
-                    ErrorMessage = $"Ошибка: {ex.Message}"
-                };
+                Console.WriteLine($"Критическая ошибка: {ex.Message}");
             }
+
+            return null;
         }
     }
 }
-

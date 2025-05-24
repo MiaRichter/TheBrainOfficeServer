@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="mia.local" id="ec92e3dc-9ef2-4fd0-a85a-831c709b4897" port="22" nameFormat="DESCRIPTIVE" username="mia" useOpenSSHConfig="true" />
+    </configs>
+  </component>
+</project>
