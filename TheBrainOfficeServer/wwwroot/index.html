@@ -5,30 +5,66 @@
     <title>Sensor Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
-        body { font-family: Arial; margin:20px; background:#f4f4f4; }
-        #sensorData, #portsList {
-            background:#fff; padding:20px; border-radius:8px;
-            box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-top:20px;
+        body { font-family: Arial, sans-serif; margin:20px; background:#f4f4f4; }
+        h1 { text-align:center; margin-bottom:20px; }
+
+        #portsList, #sensorData {
+            background:#fff;
+            padding:20px;
+            border-radius:8px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.1);
+            margin-bottom:20px;
         }
-        ul { list-style:none; padding:0; }
-        li { padding:8px; background:#eee; margin:4px 0; border-radius:4px; cursor:pointer; }
-        li:hover { background:#ddd; }
-        .value { font-weight:bold; }
+
+        #portsList h3, #sensorData h3 {
+            margin-bottom:12px;
+            color:#555;
+        }
+
+        ul { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:10px; }
+        li {
+            flex:1 1 120px;
+            text-align:center;
+            padding:10px;
+            background:#e9e9e9;
+            border-radius:6px;
+            cursor:pointer;
+            transition:background .2s;
+        }
+        li:hover { background:#d4e6fa; }
+        li.active { background:#1890ff; color:#fff; }
+
+        #sensorData { display:none; }
+        #sensorData p {
+            margin:8px 0;
+            font-size:1rem;
+        }
+        #sensorData strong { color:#555; width:auto; display:inline-block; }
+        .value { font-weight:bold; color:#1890ff; }
     </style>
 </head>
 <body>
-<h1>Данные с сенсора</h1>
-
-<div id="sensorData" style="display:none;">
-    <p><strong>Температура:</strong> <span id="temperature" class="value"></span> °C</p>
-    <p><strong>Влажность:</strong> <span id="humidity" class="value"></span> %</p>
-    <p><strong>RFID:</strong> <span id="rfid" class="value"></span></p>
-    <p><strong>Сервопривод:</strong> <span id="servo" class="value"></span></p>
-</div>
+<h1>Мониторинг сенсоров</h1>
 
 <div id="portsList">
-    <h3>Доступные USB-порты:</h3>
+    <h3>Доступные устройства</h3>
     <ul id="portsUl"></ul>
+</div>
+
+<div id="sensorData">
+    <h3>Текущие показания</h3>
+    <p><strong>Температура:</strong>
+        <span id="temperature" class="value">--</span> °C
+    </p>
+    <p><strong>Влажность:</strong>
+        <span id="humidity" class="value">--</span> %
+    </p>
+    <p><strong>RFID:</strong>
+        <span id="rfid" class="value">--</span>
+    </p>
+    <p><strong>Сервопривод:</strong>
+        <span id="servo" class="value">--</span>
+    </p>
 </div>
 
 <script>
@@ -37,41 +73,55 @@
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
-    // Приходит каждое обновление списка портов
+    let currentPort = null;
+
+    // Обработка обновлений с датчика
     connection.on("ReceiveSensorData", data => {
         document.getElementById("sensorData").style.display = "block";
         document.getElementById("temperature").textContent = data.temperature.toFixed(1);
-        document.getElementById("humidity").textContent = data.humidity.toFixed(1);
-        document.getElementById("rfid").textContent     = data.rfid || "Нет";
-        document.getElementById("servo").textContent    = data.servo > 0 ? "ВКЛ" : "ВЫКЛ";
-        console.log("Данные сенсора:", data);
+        document.getElementById("humidity").textContent    = data.humidity.toFixed(1);
+        document.getElementById("rfid").textContent        = data.rfid || "Нет";
+        document.getElementById("servo").textContent       = data.servo > 0 ? "ВКЛ" : "ВЫКЛ";
+
+        // Заменяем название активного элемента на реальное имя компонента
+        if (currentPort !== null && data.name) {
+            document.querySelectorAll("#portsUl li").forEach(li => {
+                if (li.dataset.port === currentPort) {
+                    li.textContent = data.name;
+                }
+            });
+        }
     });
 
     async function start() {
         await connection.start();
-        console.log("SignalR подключён");
 
-        // Подписываемся на стрим портов
-        const stream = connection.stream("StreamAvailablePorts");
-
-        stream.subscribe({
-            next: ports => {
-                const ul = document.getElementById("portsUl");
-                ul.innerHTML = "";
-                ports.forEach(p => {
-                    const li = document.createElement("li");
-                    li.textContent = `/dev/ttyUSB${p}`;
-                    li.onclick = () => connection.invoke("OpenPort", p);
-                    ul.appendChild(li);
-                });
-                console.log("Порты:", ports);
-            },
-            error: err => console.error(err),
-            complete: () => console.log("Стрим портов завершён")
-        });
+        // Стримим список доступных портов
+        connection.stream("StreamAvailablePorts")
+            .subscribe({
+                next: ports => {
+                    const ul = document.getElementById("portsUl");
+                    ul.innerHTML = "";
+                    ports.forEach(p => {
+                        const li = document.createElement("li");
+                        li.textContent = "Устройство";   // без номеров
+                        li.dataset.port = p;             // но порт хранится
+                        li.onclick = () => {
+                            currentPort = p;
+                            // подсвечиваем активный
+                            ul.querySelectorAll("li").forEach(x => x.classList.remove("active"));
+                            li.classList.add("active");
+                            // запускаем OpenPort
+                            connection.invoke("OpenPort", p);
+                        };
+                        ul.appendChild(li);
+                    });
+                },
+                error: err => console.error(err)
+            });
     }
 
-    start().catch(err => console.error(err));
+    start().catch(console.error);
 </script>
 </body>
 </html>
