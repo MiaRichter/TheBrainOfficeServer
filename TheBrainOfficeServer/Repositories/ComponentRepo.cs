@@ -14,10 +14,10 @@ namespace TheBrainOfficeServer.Repositories
 {
     public class ComponentRepo
     {
-        private readonly AppDBService _db;
+        private readonly AppDbService _db;
         private readonly ILogger<ComponentRepo> _logger;
 
-        public ComponentRepo(AppDBService db, ILogger<ComponentRepo> logger)
+        public ComponentRepo(AppDbService db, ILogger<ComponentRepo> logger)
         {
             _db = db;
             _logger = logger;
@@ -70,7 +70,35 @@ namespace TheBrainOfficeServer.Repositories
                 throw;
             }
         }
+        
+        public ComponentModel GetComponentById(string componentId)
+        {
+            try
+            {
+                string query = @"
+            SELECT 
+                id, 
+                component_id AS ComponentId,
+                name,
+                description,
+                component_type AS ComponentType,
+                location,
+                created_at AS CreatedAt,
+                updated_at AS UpdatedAt,
+                is_active AS IsActive
+            FROM components
+            WHERE component_id = @ComponentId
+            AND is_active = true";
 
+                return _db.GetScalar<ComponentModel>(query, new { ComponentId = componentId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error retrieving component {componentId}");
+                throw;
+            }
+        }
+        
         public bool UpdateComponent(ComponentModel component)
         {
             try
@@ -115,74 +143,5 @@ namespace TheBrainOfficeServer.Repositories
             }
         }
         
-        public SensorData DhtState(string portNumber)
-        {
-            Console.WriteLine("Сервер запущен. Ожидание данных...");
-            SensorData data;
-            try
-            {
-                
-                using var serialPort = new SerialPort($"/dev/ttyUSB{portNumber}", 115200)
-                {
-                    ReadTimeout = 1500,
-                    WriteTimeout = 1500,
-                    Encoding = System.Text.Encoding.UTF8
-                };
-
-                serialPort.Open();
-                serialPort.DiscardInBuffer(); // Очистка буфера
-
-                while (DateTime.Now.Day <= 30)
-                {
-                    try
-                    {
-                        string jsonData = serialPort.ReadLine().Trim();
-
-                        // Пропускаем пустые или некорректные данные
-                        if (string.IsNullOrEmpty(jsonData) || !jsonData.StartsWith("{"))
-                            continue;
-
-                        var options = new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        };
-
-                        data = JsonSerializer.Deserialize<SensorData>(jsonData, options);
-
-                        Console.WriteLine($"Влажность: {data?.Humidity ?? 0:F1}%");
-                        Console.WriteLine($"Температура: {data?.Temperature ?? 0:F1}°C");
-                        Console.WriteLine($"RFID: {data?.Rfid ?? "none"}");
-                        Console.WriteLine($"Сервопривод: {(data?.Servo > 0 ? "ВКЛ" : "ВЫКЛ")}");
-                        Console.WriteLine("---------------------");
-                        return data;
-                    }
-                    catch (TimeoutException)
-                    {
-                        Console.WriteLine("Таймаут чтения. Проверьте подключение.");
-                    }
-                    catch (JsonException)
-                    {
-                        Console.WriteLine("Ошибка формата данных. Получена некорректная строка JSON.");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Ошибка: {ex.Message}");
-                    }
-                }
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Console.WriteLine("Ошибка доступа к порту. Попробуйте:");
-                Console.WriteLine("1. sudo usermod -a -G dialout $USER");
-                Console.WriteLine("2. sudo chmod 666 /dev/ttyUSB*");
-                Console.WriteLine("3. Перезагрузите Raspberry Pi");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Критическая ошибка: {ex.Message}");
-            }
-
-            return null;
-        }
     }
 }

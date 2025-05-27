@@ -1,0 +1,90 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Sensor Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        #sensorData {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        label, input, button {
+            font-size: 1rem;
+        }
+        input {
+            margin-right: 10px;
+        }
+        .value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h1>Данные с сенсора</h1>
+
+<label for="portInput">Номер USB-порта:</label>
+<input type="text" id="portInput" placeholder="например, 0" />
+<button id="btnOpenPort">Выбрать порт и начать получать данные</button>
+
+<div id="sensorData" style="display: none;">
+    <p><strong>Температура:</strong> <span id="temperature" class="value"></span> °C</p>
+    <p><strong>Влажность:</strong> <span id="humidity" class="value"></span> %</p>
+    <p><strong>RFID:</strong> <span id="rfid" class="value"></span></p>
+    <p><strong>Сервопривод:</strong> <span id="servo" class="value"></span></p>
+</div>
+
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("http://mia.local:5000/sensorhub")
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+    connection.on("ReceiveSensorData", (data) => {
+        if (data) {
+            document.getElementById("temperature").textContent = data.temperature.toFixed(1);
+            document.getElementById("humidity").textContent = data.humidity.toFixed(1);
+            document.getElementById("rfid").textContent = data.rfid || "Нет";
+            document.getElementById("servo").textContent = data.servo > 0 ? "ВКЛ" : "ВЫКЛ";
+            document.getElementById("sensorData").style.display = "block";
+            console.log("Данные от устройства:", data);
+        }
+    });
+
+    async function startConnection() {
+        try {
+            await connection.start();
+            console.log("Подключено к SignalR.");
+        } catch (err) {
+            setTimeout(startConnection, 2000);
+        }
+    }
+
+    startConnection();
+
+    document.getElementById("btnOpenPort").addEventListener("click", async () => {
+        const port = document.getElementById("portInput").value.trim();
+        if (!port) {
+            alert("Введите номер порта, например: 0");
+            return;
+        }
+
+        try {
+            await connection.invoke("OpenPort", port);
+            console.log(`Порт /dev/ttyUSB${port} открыт, начато получение данных`);
+        } catch (err) {
+            console.error("Ошибка открытия порта:", err);
+        }
+    });
+
+</script>
+</body>
+</html>

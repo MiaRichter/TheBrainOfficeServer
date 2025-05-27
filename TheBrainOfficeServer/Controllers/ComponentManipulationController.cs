@@ -19,10 +19,45 @@ namespace TheBrainOfficeServer.Controllers
         [HttpDelete("Delete/{componentId}")]
         public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(componentRepo.DeleteComponent(componentId));[HttpDelete("Delete/{componentId}")]
         
-        [HttpGet("BrainHome/{PortId}")]
-        public IActionResult StateLed([FromRoute] string PortId)
+        [HttpPost("register")]
+        public IActionResult RegisterComponent([FromBody] ComponentModel request)
         {
-            return Ok(componentRepo.DhtState(PortId));
+            try
+            {
+                // Проверяем существование компонента
+                var existing = componentRepo.GetComponentById(request.ComponentId);
+            
+                if (existing == null)
+                {
+                    // Создаем новый компонент
+                    var component = new ComponentModel
+                    {
+                        ComponentId = request.ComponentId,
+                        Name = request.Name,
+                        Description = request.Description,
+                        ComponentType = request.ComponentType,
+                        Location = request.Location
+                    };
+                
+                    componentRepo.CreateComponent(component);
+                    return Ok(existing);
+                }
+                else
+                {
+                    // Обновляем существующий компонент
+                    existing.Name = request.Name;
+                    existing.Description = request.Description;
+                    existing.ComponentType = request.ComponentType;
+                    existing.Location = request.Location;
+                
+                    componentRepo.UpdateComponent(existing);
+                    return Ok($"{existing}");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error registering component {request.ComponentId}");
+            }
         }
     }
 }
