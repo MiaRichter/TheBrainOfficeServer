@@ -5,41 +5,30 @@
     <title>Sensor Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
+        body { font-family: Arial; margin:20px; background:#f4f4f4; }
+        #sensorData, #portsList {
+            background:#fff; padding:20px; border-radius:8px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-top:20px;
         }
-        #sensorData {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        label, input, button {
-            font-size: 1rem;
-        }
-        input {
-            margin-right: 10px;
-        }
-        .value {
-            font-weight: bold;
-        }
+        ul { list-style:none; padding:0; }
+        li { padding:8px; background:#eee; margin:4px 0; border-radius:4px; cursor:pointer; }
+        li:hover { background:#ddd; }
+        .value { font-weight:bold; }
     </style>
 </head>
 <body>
 <h1>Данные с сенсора</h1>
 
-<label for="portInput">Номер USB-порта:</label>
-<input type="text" id="portInput" placeholder="например, 0" />
-<button id="btnOpenPort">Выбрать порт и начать получать данные</button>
-
-<div id="sensorData" style="display: none;">
+<div id="sensorData" style="display:none;">
     <p><strong>Температура:</strong> <span id="temperature" class="value"></span> °C</p>
     <p><strong>Влажность:</strong> <span id="humidity" class="value"></span> %</p>
     <p><strong>RFID:</strong> <span id="rfid" class="value"></span></p>
     <p><strong>Сервопривод:</strong> <span id="servo" class="value"></span></p>
+</div>
+
+<div id="portsList">
+    <h3>Доступные USB-порты:</h3>
+    <ul id="portsUl"></ul>
 </div>
 
 <script>
@@ -48,43 +37,41 @@
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
-    connection.on("ReceiveSensorData", (data) => {
-        if (data) {
-            document.getElementById("temperature").textContent = data.temperature.toFixed(1);
-            document.getElementById("humidity").textContent = data.humidity.toFixed(1);
-            document.getElementById("rfid").textContent = data.rfid || "Нет";
-            document.getElementById("servo").textContent = data.servo > 0 ? "ВКЛ" : "ВЫКЛ";
-            document.getElementById("sensorData").style.display = "block";
-            console.log("Данные от устройства:", data);
-        }
+    // Приходит каждое обновление списка портов
+    connection.on("ReceiveSensorData", data => {
+        document.getElementById("sensorData").style.display = "block";
+        document.getElementById("temperature").textContent = data.temperature.toFixed(1);
+        document.getElementById("humidity").textContent = data.humidity.toFixed(1);
+        document.getElementById("rfid").textContent     = data.rfid || "Нет";
+        document.getElementById("servo").textContent    = data.servo > 0 ? "ВКЛ" : "ВЫКЛ";
+        console.log("Данные сенсора:", data);
     });
 
-    async function startConnection() {
-        try {
-            await connection.start();
-            console.log("Подключено к SignalR.");
-        } catch (err) {
-            setTimeout(startConnection, 2000);
-        }
+    async function start() {
+        await connection.start();
+        console.log("SignalR подключён");
+
+        // Подписываемся на стрим портов
+        const stream = connection.stream("StreamAvailablePorts");
+
+        stream.subscribe({
+            next: ports => {
+                const ul = document.getElementById("portsUl");
+                ul.innerHTML = "";
+                ports.forEach(p => {
+                    const li = document.createElement("li");
+                    li.textContent = `/dev/ttyUSB${p}`;
+                    li.onclick = () => connection.invoke("OpenPort", p);
+                    ul.appendChild(li);
+                });
+                console.log("Порты:", ports);
+            },
+            error: err => console.error(err),
+            complete: () => console.log("Стрим портов завершён")
+        });
     }
 
-    startConnection();
-
-    document.getElementById("btnOpenPort").addEventListener("click", async () => {
-        const port = document.getElementById("portInput").value.trim();
-        if (!port) {
-            alert("Введите номер порта, например: 0");
-            return;
-        }
-
-        try {
-            await connection.invoke("OpenPort", port);
-            console.log(`Порт /dev/ttyUSB${port} открыт, начато получение данных`);
-        } catch (err) {
-            console.error("Ошибка открытия порта:", err);
-        }
-    });
-
+    start().catch(err => console.error(err));
 </script>
 </body>
 </html>
