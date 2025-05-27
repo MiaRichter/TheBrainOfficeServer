@@ -1,16 +1,23 @@
-﻿using System.Collections.Generic;
-using TheBrainOfficeServer.Models;
+﻿﻿using System.Collections.Generic;
+ using System.Device.Gpio;
+ using System.Device.I2c;
+ using System.IO.Ports;
+ using System.Text.Json;
+ using Iot.Device.Common;
+ using Iot.Device.DHTxx;
+ using TheBrainOfficeServer.Models;
 using Microsoft.Extensions.Logging;
 using TheBrainOfficeServer.Services;
+using UnitsNet;
 
 namespace TheBrainOfficeServer.Repositories
 {
     public class ComponentRepo
     {
-        private readonly AppDBService _db;
+        private readonly AppDbService _db;
         private readonly ILogger<ComponentRepo> _logger;
 
-        public ComponentRepo(AppDBService db, ILogger<ComponentRepo> logger)
+        public ComponentRepo(AppDbService db, ILogger<ComponentRepo> logger)
         {
             _db = db;
             _logger = logger;
@@ -63,7 +70,35 @@ namespace TheBrainOfficeServer.Repositories
                 throw;
             }
         }
+        
+        public ComponentModel GetComponentById(string componentId)
+        {
+            try
+            {
+                string query = @"
+            SELECT 
+                id, 
+                component_id AS ComponentId,
+                name,
+                description,
+                component_type AS ComponentType,
+                location,
+                created_at AS CreatedAt,
+                updated_at AS UpdatedAt,
+                is_active AS IsActive
+            FROM components
+            WHERE component_id = @ComponentId
+            AND is_active = true";
 
+                return _db.GetScalar<ComponentModel>(query, new { ComponentId = componentId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error retrieving component {componentId}");
+                throw;
+            }
+        }
+        
         public bool UpdateComponent(ComponentModel component)
         {
             try
@@ -107,5 +142,6 @@ namespace TheBrainOfficeServer.Repositories
                 throw;
             }
         }
+        
     }
 }

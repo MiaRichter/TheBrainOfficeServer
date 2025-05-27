@@ -5,80 +5,58 @@ using TheBrainOfficeServer.Repositories;
 namespace TheBrainOfficeServer.Controllers
 {
     [Route("api/[controller]")]
-    public class ComponentManipulationController : ControllerBase
+    public class ComponentManipulationController(ComponentRepo componentRepo) : ControllerBase
     {
-        private readonly ComponentRepo _componentRepo;
-        private readonly ILogger<ComponentManipulationController> _logger;
-
-        public ComponentManipulationController(ComponentRepo componentRepo, ILogger<ComponentManipulationController> logger)
-        {
-            _componentRepo = componentRepo;
-            _logger = logger;
-        }
-
         [HttpGet("ShowComponents")]
-        public ActionResult<IEnumerable<ComponentModel>> GetAllComponents()
-        {
-            try
-            {
-                var components = _componentRepo.ShowComponents();
-                return Ok(components);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message, "Error getting components");
-                return StatusCode(500, "Internal server error");
-            }
-        }
+        public ActionResult<IEnumerable<ComponentModel>> GetAllComponents() => Ok(componentRepo.ShowComponents());
 
         [HttpPost("Create")]
-        public ActionResult CreateComponent([FromBody] ComponentModel component)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+        public ActionResult CreateComponent([FromBody] ComponentModel component) => Ok(componentRepo.CreateComponent(component));
 
-            try
-            {
-                return Ok(_componentRepo.CreateComponent(component));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message, "Error creating component");
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        [HttpPut("Update/{componentId}")]
-        public IActionResult UpdateComponent(string componentId, [FromBody] ComponentModel component)
-        {
-            if (componentId != component.ComponentId)
-                return BadRequest("ID mismatch");
-
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            try
-            {
-                return Ok(_componentRepo.UpdateComponent(component));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex.Message, $"Error updating component {componentId}");
-                return StatusCode(500, "Internal server error");
-            }
-        }
+        [HttpPut("Update")]
+        public IActionResult UpdateComponent([FromBody] ComponentModel component) => Ok(componentRepo.UpdateComponent(component));
 
         [HttpDelete("Delete/{componentId}")]
-        public IActionResult DeleteComponent([FromRoute] string componentId)
+        public IActionResult DeleteComponent([FromRoute] string componentId) => Ok(componentRepo.DeleteComponent(componentId));[HttpDelete("Delete/{componentId}")]
+        
+        [HttpPost("register")]
+        public IActionResult RegisterComponent([FromBody] ComponentModel request)
         {
             try
             {
-                return Ok(_componentRepo.DeleteComponent(componentId));
+                // Проверяем существование компонента
+                var existing = componentRepo.GetComponentById(request.ComponentId);
+            
+                if (existing == null)
+                {
+                    // Создаем новый компонент
+                    var component = new ComponentModel
+                    {
+                        ComponentId = request.ComponentId,
+                        Name = request.Name,
+                        Description = request.Description,
+                        ComponentType = request.ComponentType,
+                        Location = request.Location
+                    };
+                
+                    componentRepo.CreateComponent(component);
+                    return Ok(existing);
+                }
+                else
+                {
+                    // Обновляем существующий компонент
+                    existing.Name = request.Name;
+                    existing.Description = request.Description;
+                    existing.ComponentType = request.ComponentType;
+                    existing.Location = request.Location;
+                
+                    componentRepo.UpdateComponent(existing);
+                    return Ok($"{existing}");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex.Message, $"Error deleting component {componentId}");
-                return StatusCode(500, "Internal server error");
+                return StatusCode(500, $"Error registering component {request.ComponentId}");
             }
         }
     }

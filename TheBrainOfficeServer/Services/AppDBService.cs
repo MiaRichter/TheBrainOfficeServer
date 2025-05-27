@@ -4,11 +4,11 @@ using Dapper; // Предполагается, что вы использует�
 
 namespace TheBrainOfficeServer.Services
 {
-    public class AppDBService
+    public class AppDbService
     {
         private readonly IDbConnection _dbConn;
 
-        public AppDBService(string connection)
+        public AppDbService(string connection)
         {
             _dbConn = new NpgsqlConnection(connection); // Используем NpgsqlConnection вместо OracleConnection
         }

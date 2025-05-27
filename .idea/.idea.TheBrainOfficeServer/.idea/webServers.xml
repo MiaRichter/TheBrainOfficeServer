@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="67b21c54-beeb-426d-bd72-d612e493397c" name="MiaPi">
+        <fileTransfer rootFolder="/home/mia/BrainOfficeServer" accessType="SFTP" host="mia.local" port="22" sshConfigId="ec92e3dc-9ef2-4fd0-a85a-831c709b4897" sshConfig="mia@mia.local:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" isUseSudo="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
