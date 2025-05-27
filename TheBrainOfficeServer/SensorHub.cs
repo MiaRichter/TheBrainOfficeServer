@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.IO.Ports;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
@@ -12,6 +13,7 @@ public class SensorHub : Hub
     // Словари для хранения открытых портов и токенов отмены по ConnectionId клиента
     private static readonly ConcurrentDictionary<string, SerialPort> Ports = new();
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> ReadTokens = new();
+
     [HubMethodName("OpenPort")] // Явное указание имени метода
     public async Task OpenPort(string portNumber)
     {
@@ -63,7 +65,8 @@ public class SensorHub : Hub
 
                             if (data != null)
                             {
-                                await clientProxy.SendAsync("ReceiveSensorData", data); // Используем clientProxy, а не Clients.Client(...)
+                                await clientProxy.SendAsync("ReceiveSensorData",
+                                    data); // Используем clientProxy, а не Clients.Client(...)
                             }
                         }
                     }
@@ -81,7 +84,8 @@ public class SensorHub : Hub
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Не удалось открыть порт /dev/ttyUSB{portNumber} для клиента {connectionId}: {ex.Message}");
+            Console.WriteLine(
+                $"Не удалось открыть порт /dev/ttyUSB{portNumber} для клиента {connectionId}: {ex.Message}");
             throw new HubException($"Ошибка открытия порта: {ex.Message}");
         }
     }
@@ -116,40 +120,75 @@ public class SensorHub : Hub
         }
     }
 
-    public string ListUsbPorts()
+    /// <summary>
+    /// Стримит клиенту список доступных /dev/ttyUSB* каждые 2 секунды.
+    /// </summary>
+    public async IAsyncEnumerable<string[]> StreamAvailablePorts([EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        try
+        while (!cancellationToken.IsCancellationRequested)
         {
-            var process = new System.Diagnostics.Process
+            string[] files;
+            try
             {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "/bin/bash",
-                    Arguments = "-c \"ls /dev/ttyUSB*\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            process.Start();
-            string output = process.StandardOutput.ReadToEnd().Trim();
-            string error = process.StandardError.ReadToEnd().Trim();
-            process.WaitForExit();
-
-            if (!string.IsNullOrWhiteSpace(error))
+                files = Directory
+                    .GetFiles("/dev", "ttyUSB*")
+                    .Select(Path.GetFileName)
+                    .Select(name => name!.Replace("ttyUSB", "")) // оставляем только номер
+                    .ToArray();
+            }
+            catch
             {
-                Console.WriteLine("Ошибка при выполнении команды ls: " + error);
-                return $"Ошибка: {error}";
+                files = Array.Empty<string>();
             }
 
-            return output;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Ошибка выполнения команды ls: " + ex.Message);
-            return $"Ошибка: {ex.Message}";
+            yield return files;
+
+            try
+            {
+                await Task.Delay(2000, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                yield break;
+            }
+
+
+            string ListUsbPorts()
+            {
+                try
+                {
+                    var process = new System.Diagnostics.Process
+                    {
+                        StartInfo = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "/bin/bash",
+                            Arguments = "-c \"ls /dev/ttyUSB*\"",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        }
+                    };
+
+                    process.Start();
+                    string output = process.StandardOutput.ReadToEnd().Trim();
+                    string error = process.StandardError.ReadToEnd().Trim();
+                    process.WaitForExit();
+
+                    if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        Console.WriteLine("Ошибка при выполнении команды ls: " + error);
+                        return $"Ошибка: {error}";
+                    }
+
+                    return output;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Ошибка выполнения команды ls: " + ex.Message);
+                    return $"Ошибка: {ex.Message}";
+                }
+            }
         }
     }
 }
