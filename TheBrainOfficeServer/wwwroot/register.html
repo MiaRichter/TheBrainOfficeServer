@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Регистрация</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        input, button { padding: 10px; font-size: 16px; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background: #218838; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+<h1>Регистрация</h1>
+<form id="registerForm">
+    <input type="text" id="username" placeholder="Логин" required />
+    <input type="password" id="password" placeholder="Пароль" required />
+    <button type="submit">Зарегистрироваться</button>
+</form>
+<p id="error" class="error"></p>
+<p>Уже есть аккаунт? <a href="/login.html">Войти</a></p>
+
+<script>
+    document.getElementById("registerForm").addEventListener("submit", async e => {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+            window.location.href = "/login.html"; // После успешной регистрации
+        } else {
+            const error = await response.text();
+            document.getElementById("error").textContent = error || "Ошибка регистрации";
+        }
+    });
+</script>
+</body>
+</html>

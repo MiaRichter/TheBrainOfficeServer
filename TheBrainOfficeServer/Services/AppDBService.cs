@@ -1,97 +1,72 @@
 ﻿using System.Data;
-using Npgsql; // Заменяем OracleConnection на NpgsqlConnection
-using Dapper; // Предполагается, что вы используете Dapper для Query и Execute
+using Npgsql;
+using Dapper;
 
 namespace TheBrainOfficeServer.Services
 {
-    public class AppDBService
+    public class AppDbService
     {
-        private readonly IDbConnection _dbConn;
+        private readonly string _connectionString;
 
-        public AppDBService(string connection)
+        public AppDbService(string connection)
         {
-            _dbConn = new NpgsqlConnection(connection); // Используем NpgsqlConnection вместо OracleConnection
+            _connectionString = connection;
         }
 
-        public T GetScalar<T>(string sql, object param = null)
+        private NpgsqlConnection CreateConnection()
         {
-            try
-            {
-                _dbConn.Open();
-                return _dbConn.Query<T>(sql, param).FirstOrDefault();
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            return new NpgsqlConnection(_connectionString);
         }
 
-        public List<T> GetList<T>(string sql, object param = null)
+        public async Task<T> GetScalarAsync<T>(string sql, object param = null)
         {
-            try
-            {
-                _dbConn.Open();
-                return _dbConn.Query<T>(sql, param).ToList();
-            }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            await using var conn = CreateConnection();
+            await conn.OpenAsync();
+            return await conn.QueryFirstOrDefaultAsync<T>(sql, param);
         }
 
-        public List<Dictionary<string, string>> GetList(string sql)
+        public async Task<List<T>> GetListAsync<T>(string sql, object param = null)
+        {
+            await using var conn = CreateConnection();
+            await conn.OpenAsync();
+            var list = await conn.QueryAsync<T>(sql, param);
+            return list.ToList();
+        }
+
+        public async Task<List<Dictionary<string, string>>> GetListAsync(string sql)
         {
             var res = new List<Dictionary<string, string>>();
 
-            try
+            await using var conn = CreateConnection();
+            await conn.OpenAsync();
+
+            await using var reader = await conn.ExecuteReaderAsync(sql);
+            while (await reader.ReadAsync())
             {
-                _dbConn.Open();
-                using (var reader = _dbConn.ExecuteReader(sql))
+                var row = new Dictionary<string, string>();
+                for (int i = 0; i < reader.FieldCount; i++)
                 {
-                    while (reader.Read())
-                    {
-                        var row = new Dictionary<string, string>();
-                        for (int i = 0; i < reader.FieldCount; i++)
-                        {
-                            row.Add(
-                                reader.GetName(i).ToLower(),
-                                reader.GetValue(i)?.ToString() ?? string.Empty
-                            );
-                        }
-                        res.Add(row);
-                    }
+                    row.Add(reader.GetName(i).ToLower(), reader.GetValue(i)?.ToString() ?? string.Empty);
                 }
-                return res;
+                res.Add(row);
             }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
+            return res;
         }
 
-        public bool Execute(string sql, object param = null) // Добавил параметр param для безопасности
+        public async Task<bool> ExecuteAsync(string sql, object param = null)
         {
             try
             {
-                _dbConn.Open();
-                _dbConn.Execute(sql, param); // Используем параметризованный запрос
-                return true;
+                await using var conn = CreateConnection();
+                await conn.OpenAsync();
+                var affectedRows = await conn.ExecuteAsync(sql, param);
+                return affectedRows > 0;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Логирование ошибки было бы полезно
+                // Логирование ошибки — рекомендую добавить
                 return false;
             }
-            finally
-            {
-                if (_dbConn.State == ConnectionState.Open)
-                    _dbConn.Close();
-            }
         }
-
-        public IDbConnection GetConnection() => _dbConn;
     }
 }

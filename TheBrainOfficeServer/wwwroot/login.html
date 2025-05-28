@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Вход</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        input, button { padding: 10px; font-size: 16px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+<h1>Вход</h1>
+<form id="loginForm">
+    <input type="text" id="username" placeholder="Логин" required />
+    <input type="password" id="password" placeholder="Пароль" required />
+    <button type="submit">Войти</button>
+</form>
+<p id="error" class="error"></p>
+<p>Нет аккаунта? <a href="/register.html">Зарегистрироваться</a></p>
+
+<script>
+    document.getElementById("loginForm").addEventListener("submit", async e => {
+        e.preventDefault();
+
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        console.log("Попытка входа с данными:", { username, password });
+        if (response.ok) {
+            const data = await response.json();
+            // Сохраняем JWT в localStorage
+            localStorage.setItem("jwtToken", data.token);
+            window.location.href = "/index.html"; // Переход после входа
+        } else {
+            const error = await response.text();
+            document.getElementById("error").textContent = error || "Ошибка входа";
+        }
+    });
+</script>
+</body>
+</html>

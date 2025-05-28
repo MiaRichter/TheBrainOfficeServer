@@ -1,0 +1,309 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Sensor Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            color: #333;
+            font-size: 24px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 40px 0;
+            font-size: 4rem;
+            color: #333;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        #portsList, #sensorData {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+            padding: 32px;
+            max-width: 100%;
+            margin: 0 auto 30px;
+            width: 100%;
+        }
+
+        #portsList h3, #sensorData h3 {
+            font-size: 2rem;
+            margin-bottom: 24px;
+            color: #222;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 8px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        li {
+            flex: 0 1 240px;
+            padding: 20px;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #f0f0f0, #ffffff);
+            box-shadow: 4px 4px 10px #ccc, -4px -4px 10px #fff;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            font-size: 1.8rem;
+        }
+
+        li:hover {
+            background: #dbeeff;
+            box-shadow: 2px 2px 10px #b0c4de, -2px -2px 10px #e6f0ff;
+        }
+
+        li.active {
+            background: #007bff;
+            color: white;
+            box-shadow: inset 2px 2px 8px rgba(0, 0, 0, 0.2), inset -2px -2px 8px rgba(255, 255, 255, 0.3);
+        }
+
+        #sensorData p {
+            margin: 16px 0;
+            font-size: 1.6rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #sensorData strong {
+            color: #444;
+        }
+
+        .value {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        #logoutBtn {
+            margin-top: 20px;
+            padding: 16px 24px;
+            border: none;
+            background: #ff4b5c;
+            color: white;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+            transition: background 0.3s;
+        }
+
+        #logoutBtn:hover {
+            background: #e43e4b;
+        }
+
+        @media (max-width: 600px), body.mobile-mode {
+                                           body {
+                                               padding: 24px 12px;
+                                               font-size: 22px;
+                                           }
+
+                                           h1 {
+                                               font-size: 3rem;
+                                           }
+
+                                           #portsList, #sensorData {
+                                               padding: 24px;
+                                           }
+
+                                           #portsList h3, #sensorData h3 {
+                                               font-size: 1.8rem;
+                                           }
+
+                                           ul {
+                                               flex-direction: column;
+                                               gap: 16px;
+                                           }
+
+                                           li {
+                                               flex: 1 1 100%;
+                                               font-size: 1.6rem;
+                                               padding: 20px;
+                                           }
+
+                                           #sensorData p {
+                                               font-size: 1.5rem;
+                                               flex-direction: column;
+                                               align-items: flex-start;
+                                           }
+
+                                           #logoutBtn {
+                                               width: 100%;
+                                               padding: 14px;
+                                               font-size: 1.4rem;
+                                           }
+                                       }
+    </style>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.body.classList.add("mobile-mode");
+            }
+        });
+    </script>
+</head>
+<body>
+<h1>Мониторинг сенсоров</h1>
+
+<div id="portsList" style="display: none;">
+    <h3>Доступные устройства</h3>
+    <ul id="portsUl"></ul>
+    <button id="logoutBtn">Выйти</button>
+</div>
+
+<div id="sensorData">
+    <h3>Текущие показания</h3>
+    <p><strong>Температура:</strong> <span id="temperature" class="value">--</span> °C</p>
+    <p><strong>Влажность:</strong> <span id="humidity" class="value">--</span> %</p>
+    <p><strong>RFID:</strong> <span id="rfid" class="value">--</span></p>
+    <p><strong>Сервопривод:</strong> <span id="servo" class="value">--</span></p>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("http://mia.local:5000/sensorhub")
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        let currentPort = null;
+        const portNamesKey = "portNames";
+
+        function loadPortNames() {
+            return JSON.parse(localStorage.getItem(portNamesKey) || "{}");
+        }
+
+        function savePortName(port, name) {
+            const names = loadPortNames();
+            names[port] = name;
+            localStorage.setItem(portNamesKey, JSON.stringify(names));
+        }
+
+        connection.on("ReceiveSensorData", data => {
+            document.getElementById("sensorData").style.display = "block";
+            document.getElementById("temperature").textContent = data.temperature?.toFixed(1) ?? "--";
+            document.getElementById("humidity").textContent = data.humidity?.toFixed(1) ?? "--";
+            document.getElementById("rfid").textContent = data.rfid || "Нет";
+            document.getElementById("servo").textContent = (data.servo > 0) ? "ВКЛ" : "ВЫКЛ";
+
+            if (currentPort !== null && data.name) {
+                const li = document.querySelector(`#portsUl li[data-port="${currentPort}"]`);
+                if (li && (!li.dataset.name || li.textContent !== data.name)) {
+                    li.dataset.name = data.name;
+                    li.textContent = data.name;
+                    savePortName(currentPort, data.name);
+                }
+            }
+
+            // Уведомление о пожаре при температуре выше 60°C
+            if (data.temperature !== undefined && data.temperature > 60) {
+                alert("Внимание! Обнаружен пожар! Температура слишком высокая.");
+            }
+        });
+
+        async function start() {
+            await connection.start();
+
+            connection.stream("StreamAvailablePorts").subscribe({
+                next: ports => {
+                    const ul = document.getElementById("portsUl");
+                    const existingPorts = Array.from(ul.children).map(li => li.dataset.port);
+                    const savedNames = loadPortNames();
+
+                    ports.forEach(p => {
+                        if (!existingPorts.includes(p)) {
+                            const li = document.createElement("li");
+                            li.dataset.port = p;
+                            li.textContent = savedNames[p] || `Инициализация нового устройства`;
+
+                            li.onclick = () => {
+                                currentPort = p;
+                                ul.querySelectorAll("li").forEach(x => x.classList.remove("active"));
+                                li.classList.add("active");
+                                connection.invoke("OpenPort", p);
+                            };
+
+                            ul.appendChild(li);
+                            li.click();
+                            document.getElementById("portsList").style.display = "block";
+                        }
+                    });
+
+                    Array.from(ul.children).forEach(li => {
+                        if (!ports.includes(li.dataset.port)) {
+                            if (currentPort === li.dataset.port) {
+                                currentPort = null;
+                                document.getElementById("sensorData").style.display = "none";
+                            }
+                            li.remove();
+                        }
+                    });
+                },
+                error: err => console.error("Ошибка стрима портов:", err),
+                complete: () => console.log("Стрим портов завершён")
+            });
+        }
+
+        async function checkAuth() {
+            const token = localStorage.getItem("jwtToken");
+            if (!token) {
+                window.location.href = "/login.html";
+                return false;
+            }
+
+            try {
+                const response = await fetch("/api/protected-route", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (response.status === 401) {
+                    localStorage.removeItem("jwtToken");
+                    window.location.href = "/login.html";
+                    return false;
+                }
+            } catch {
+                localStorage.removeItem("jwtToken");
+                window.location.href = "/login.html";
+                return false;
+            }
+            return true;
+        }
+
+        checkAuth().then(authenticated => {
+            if (authenticated) {
+                start().catch(console.error);
+            }
+        });
+
+        document.getElementById("logoutBtn").onclick = () => {
+            localStorage.removeItem("jwtToken");
+            window.location.href = "/login.html";
+        };
+    });
+</script>
+</body>
+</html>
